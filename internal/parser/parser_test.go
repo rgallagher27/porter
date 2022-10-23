@@ -1,4 +1,4 @@
-package reader
+package parser
 
 import (
 	"io"
@@ -7,16 +7,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/rgallagher27/porter/internal/services/port"
 )
 
 func TestPortReader_Read(t *testing.T) {
 	rdr := openFile(t, path.Join("testdata", "valid_ports.json"))
 
-	portReader, err := NewPortReader(rdr)
+	portParser, err := New[port.Port](rdr)
 	require.NoError(t, err)
 
 	for {
-		key, port, err := portReader.Read()
+		key, port, err := portParser.Read()
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -25,6 +27,7 @@ func TestPortReader_Read(t *testing.T) {
 		}
 
 		t.Log(key, port)
+		portParser.Return(port)
 	}
 
 }

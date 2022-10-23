@@ -1,4 +1,8 @@
-package types
+package port
+
+import (
+	"github.com/go-ozzo/ozzo-validation"
+)
 
 type Port struct {
 	Name        string    `json:"name"`
@@ -11,4 +15,10 @@ type Port struct {
 	Timezone    string    `json:"timezone"`
 	Unlocs      []string  `json:"unlocs"`
 	Code        string    `json:"code"`
+}
+
+func (p Port) Validate() error {
+	return validation.ValidateStruct(&p,
+		validation.Field(&p.Name, validation.Required),
+	)
 }

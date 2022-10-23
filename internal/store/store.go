@@ -5,8 +5,6 @@ import (
 	"fmt"
 
 	"github.com/go-redis/redis"
-
-	"github.com/rgallagher27/porter/internal/types"
 )
 
 type Store struct {
@@ -37,16 +35,16 @@ func New(cfg Config) (*Store, error) {
 	}, nil
 }
 
-// InsertPort inserts a given port in the store by its key.
-func (s *Store) InsertPort(key string, p *types.Port) error {
-	b, err := json.Marshal(p)
+// Insert inserts a given v in the store by key.
+func (s *Store) Insert(key string, v any) error {
+	b, err := json.Marshal(v)
 	if err != nil {
-		return fmt.Errorf("json marshal port: %w", err)
+		return fmt.Errorf("json marshal: %w", err)
 	}
 
 	err = s.client.Set(key, b, 0).Err()
 	if err != nil {
-		return fmt.Errorf("set port: %w", err)
+		return fmt.Errorf("set: %w", err)
 	}
 
 	return nil

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rgallagher27/porter/internal/types"
+	"github.com/rgallagher27/porter/internal/services/port"
 )
 
 func TestStore_InsertPort(t *testing.T) {
@@ -25,14 +25,14 @@ func TestStore_InsertPort(t *testing.T) {
 	require.NoError(t, err)
 
 	testKey := "test_key"
-	testPort := &types.Port{
+	testPort := &port.Port{
 		Name:     "a test port",
 		City:     "Edinburgh",
 		Province: "Scotland",
 		Country:  "United Kingdom",
 	}
 
-	err = str.InsertPort(testKey, testPort)
+	err = str.Insert(testKey, testPort)
 	require.NoError(t, err)
 
 	gotPort, err := str.client.Get(testKey).Result()
@@ -42,7 +42,7 @@ func TestStore_InsertPort(t *testing.T) {
 }
 
 // marshalPort is a helper func to marshal a port struct to a string for test comaprison
-func marshalPort(t *testing.T, p *types.Port) string {
+func marshalPort(t *testing.T, p *port.Port) string {
 	t.Helper()
 
 	b, err := json.Marshal(p)
