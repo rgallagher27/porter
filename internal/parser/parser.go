@@ -2,8 +2,13 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+)
+
+var (
+	ErrInvalidKeyFormat = errors.New("invalid key format")
 )
 
 // Parser is a generic json parser for processing documents of the format:
@@ -49,7 +54,10 @@ func (p *Parser[T]) Read() (string, *T, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	key := t.(string)
+	key, ok := t.(string)
+	if !ok {
+		return "", nil, ErrInvalidKeyFormat
+	}
 
 	var data T
 	if err := p.dec.Decode(&data); err != nil {

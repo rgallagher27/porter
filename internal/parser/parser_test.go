@@ -2,56 +2,70 @@ package parser
 
 import (
 	"io"
-	"os"
-	"path"
+	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPortReader_Read(t *testing.T) {
-	rdr := openFile(t, path.Join("testdata", "valid_ports.json"))
-
 	type testType struct {
 		Name string `json:"name"`
 	}
 
-	portParser, err := New[testType](rdr)
-	require.NoError(t, err)
+	type expected struct {
+		key  string
+		data testType
+		err  error
+	}
 
-	key, port, err := portParser.Read()
-	require.NoError(t, err)
+	tests := []struct {
+		name     string
+		input    string
+		expected []expected
+	}{
+		{
+			name:  "valid rows",
+			input: `{"ABC": {"name": "abc"}, "DEF": {"name": "def"}, "GHI": {"name": "ghi"}}`,
+			expected: []expected{{
+				key:  "ABC",
+				data: testType{Name: "abc"},
+				err:  nil,
+			}, {
+				key:  "DEF",
+				data: testType{Name: "def"},
+				err:  nil,
+			}, {
+				key:  "GHI",
+				data: testType{Name: "ghi"},
+				err:  nil,
+			}},
+		},
+		{
+			name:     "empty file",
+			input:    `{}`,
+			expected: []expected{},
+		},
+	}
 
-	assert.Equal(t, "AEAJM", key)
-	assert.NotNil(t, port)
-	assert.Equal(t, "Ajman", port.Name)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			prs, err := New[testType](strings.NewReader(tc.input))
+			require.NoError(t, err)
 
-	key, port, err = portParser.Read()
-	require.NoError(t, err)
+			var i int
+			for {
+				key, data, err := prs.Read()
+				if err == io.EOF {
+					break
+				}
 
-	assert.Equal(t, "AEAUH", key)
-	assert.NotNil(t, port)
-	assert.Equal(t, "Abu Dhabi", port.Name)
+				require.Equal(t, tc.expected[i].key, key)
+				require.Equal(t, tc.expected[i].data, *data)
+				require.Equal(t, tc.expected[i].err, err)
 
-	key, port, err = portParser.Read()
-	require.NoError(t, err)
-
-	assert.Equal(t, "AEDXB", key)
-	assert.NotNil(t, port)
-	assert.Equal(t, "Dubai", port.Name)
-
-	_, _, err = portParser.Read()
-	require.Error(t, err)
-	require.ErrorIs(t, err, io.EOF)
-
-}
-
-func openFile(t *testing.T, name string) io.Reader {
-	t.Helper()
-
-	f, err := os.Open(name)
-	require.NoError(t, err)
-
-	return f
+				i++
+			}
+		})
+	}
 }
