@@ -1,5 +1,7 @@
 package port
 
+//go:generate moq -out mocks_test.go . store
+
 import (
 	"context"
 	"fmt"
@@ -67,8 +69,6 @@ func (s *Service) Run(ctx context.Context, reader io.Reader) error {
 			return fmt.Errorf("store insert: %w", err)
 		}
 
-		// Return port object back to the parser pool
-		prs.Return(port)
 	}
 
 	return nil

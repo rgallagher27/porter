@@ -6,29 +6,44 @@ import (
 	"path"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/rgallagher27/porter/internal/services/port"
 )
 
 func TestPortReader_Read(t *testing.T) {
 	rdr := openFile(t, path.Join("testdata", "valid_ports.json"))
 
-	portParser, err := New[port.Port](rdr)
+	type testType struct {
+		Name string `json:"name"`
+	}
+
+	portParser, err := New[testType](rdr)
 	require.NoError(t, err)
 
-	for {
-		key, port, err := portParser.Read()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			require.NoError(t, err)
-		}
+	key, port, err := portParser.Read()
+	require.NoError(t, err)
 
-		t.Log(key, port)
-		portParser.Return(port)
-	}
+	assert.Equal(t, "AEAJM", key)
+	assert.NotNil(t, port)
+	assert.Equal(t, "Ajman", port.Name)
+
+	key, port, err = portParser.Read()
+	require.NoError(t, err)
+
+	assert.Equal(t, "AEAUH", key)
+	assert.NotNil(t, port)
+	assert.Equal(t, "Abu Dhabi", port.Name)
+
+	key, port, err = portParser.Read()
+	require.NoError(t, err)
+
+	assert.Equal(t, "AEDXB", key)
+	assert.NotNil(t, port)
+	assert.Equal(t, "Dubai", port.Name)
+
+	_, _, err = portParser.Read()
+	require.Error(t, err)
+	require.ErrorIs(t, err, io.EOF)
 
 }
 

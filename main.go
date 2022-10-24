@@ -1,65 +1,84 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/rgallagher27/porter/internal/services/port"
+	"github.com/rgallagher27/porter/internal/store"
+	"github.com/rgallagher27/porter/pkg/config"
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	defer func() {
+		signal.Stop(sigChan)
+		cancel()
+	}()
 
-	if err := Run(); err != nil {
+	go func() {
+		select {
+		case <-sigChan:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	cfg, err := config.Load()
+	if err != nil {
 		log.Fatal(err)
 	}
 
+	if err := Run(ctx, cfg); err != nil {
+		log.Fatal(err)
+	}
 }
 
-func Run() error {
-	f, err := os.Open("testdata/ports.json")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
+// Run is the main process of the application.
+func Run(ctx context.Context, cfg config.Config) error {
+	log.Println("Running with config", cfg)
 
-	if err := decodeStream(f); err != nil {
-		return err
+	str, err := store.New(store.Config{
+		Address:  cfg.RedisAddr,
+		Password: "",
+		DB:       0,
+	})
+	if err != nil {
+		return fmt.Errorf("new store: %w", err)
 	}
+
+	rdr, err := openFile(cfg.InputFile)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+
+	portService := port.New(str, cfg.IgnoreErrors)
+
+	err = portService.Run(ctx, rdr)
+	if err != nil {
+		return fmt.Errorf("port service run: %w", err)
+	}
+
+	log.Println("Run completed")
 
 	return nil
 }
 
-func decodeStream(r io.Reader) error {
-	dec := json.NewDecoder(r)
-
-	// Get first token
-	t, err := dec.Token()
+// openFile is a simple helper for opening a local file, returning an io.ReadCloser
+// In a real world application this would be a separate package but for times sake a simple version
+// was used here
+func openFile(fileName string) (io.ReadCloser, error) {
+	f, err := os.Open(fileName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Expect to be at the start of a JSON object
-	if t != json.Delim('{') {
-		return fmt.Errorf("expected { but got %v", t)
-	}
-
-	for dec.More() {
-		// Read the key.
-		t, err := dec.Token()
-		if err != nil {
-			return err
-		}
-		key := t.(string)
-
-		// Decode the value.
-		var port map[string]any
-		if err := dec.Decode(&port); err != nil {
-			return err
-		}
-
-		// Add your code to process the key and value here.
-		fmt.Printf("key %q, value %#v\n", key, port)
-	}
-	return nil
+	return f, nil
 }

@@ -4,20 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"sync"
 )
 
 // Parser is a generic json parser for processing documents of the format:
 //
 //	{
 //	  "key": {
-//	     ... object
+//	     ... object [T]
 //	   },
 //	...
 //	}
 type Parser[T any] struct {
-	dec  *json.Decoder
-	pool sync.Pool
+	dec *json.Decoder
 }
 
 // New initialises a new parser of the type T
@@ -35,15 +33,8 @@ func New[T any](rdc io.Reader) (*Parser[T], error) {
 		return nil, fmt.Errorf("expected { but got %v", t)
 	}
 
-	newPool := sync.Pool{
-		New: func() any {
-			return new(T)
-		},
-	}
-
 	return &Parser[T]{
-		dec:  dec,
-		pool: newPool,
+		dec: dec,
 	}, nil
 }
 
@@ -60,15 +51,10 @@ func (p *Parser[T]) Read() (string, *T, error) {
 	}
 	key := t.(string)
 
-	data := p.pool.Get().(*T)
-	if err := p.dec.Decode(data); err != nil {
+	var data T
+	if err := p.dec.Decode(&data); err != nil {
 		return key, nil, err
 	}
 
-	return key, data, err
-}
-
-// Return puts the type T object v back in the pool.
-func (p *Parser[T]) Return(v *T) {
-	p.pool.Put(v)
+	return key, &data, err
 }

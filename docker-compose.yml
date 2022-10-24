@@ -1,10 +1,22 @@
-version: '3'
+version: '3.7'
 
 services:
-  postgres:
-    image: postgres:15.0-alpine
+  redis:
+    image: redis:7-alpine
     restart: always
-    env_file:
-      - .env
     ports:
-      - "5432:5432"
+      - '6379:6379'
+
+  porter:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    restart: 'no'
+    depends_on:
+      - redis
+    environment:
+      - REDIS_ADDRESS=redis:6379
+      - INPUT_FILE=./imports/ports.json
+      - IGNORE_ERRORS=true
+    volumes:
+      - ./testdata:/imports
